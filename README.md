@@ -72,7 +72,6 @@
 
 - formulahendry.auto-rename-tag (Auto Rename Tag)
 - hashicorp.terraform (HashiCorp Terraform)
-- ms-kubernetes-tools.vscode-kubernetes-tools (Kubernetes Tools)
 - eamodio.gitlens (GitLens)
 - golang.go (Go)
 
