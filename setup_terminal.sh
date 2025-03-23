@@ -350,8 +350,8 @@ validate_setup() {
     fi
     
     # Oh My Zsh 플러그인 확인
-    # config.sh에 정의된 플러그인 확인
     if [ -n "${ZSH_PLUGINS[*]}" ]; then
+        # 플러그인 디렉토리 확인
         for plugin in "${ZSH_PLUGINS[@]}"; do
             if [ "$plugin" != "git" ] && [ "$plugin" != "z" ]; then
                 if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/$plugin" ]; then
@@ -360,31 +360,50 @@ validate_setup() {
                 fi
             fi
         done
+        
+        # 플러그인 설정 검증 개선
+        log_info "사용자 정의 플러그인 설정 확인 중..."
+        local all_plugins_found=true
+        
+        for plugin in "${ZSH_PLUGINS[@]}"; do
+            if ! grep -q "plugins=.*${plugin}" "$HOME/.zshrc"; then
+                log_warning "${plugin} 플러그인이 .zshrc 파일에 설정되어 있지 않습니다."
+                all_plugins_found=false
+            fi
+        done
+        
+        if [ "$all_plugins_found" = false ]; then
+            log_warning "일부 플러그인이 .zshrc 파일에 설정되어 있지 않습니다. 현재 설정을 확인하세요."
+        else
+            log_success "모든 플러그인이 .zshrc 파일에 올바르게 설정되어 있습니다."
+        fi
     else
-        # 기본 플러그인만 확인
+        # 기본 플러그인 디렉토리 확인
         if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
             log_error "zsh-autosuggestions 플러그인이 설치되어 있지 않습니다."
             has_error=1
         fi
-    fi
-    
-    # 플러그인 설정 확인
-    local plugins_pattern=""
-    if [ -n "${ZSH_PLUGINS[*]}" ]; then
-        # plugins 설정에서 모든 ZSH_PLUGINS 항목이 포함되어 있는지 확인하는 패턴을 생성
-        plugins_pattern="plugins=\\("
-        for plugin in "${ZSH_PLUGINS[@]}"; do
-            plugins_pattern="${plugins_pattern}.*${plugin}"
-        done
-        plugins_pattern="${plugins_pattern}.*\\)"
         
-        if ! grep -q "$plugins_pattern" "$HOME/.zshrc"; then
-            log_warning "플러그인 설정이 정확하지 않을 수 있습니다. 현재 설정을 확인하세요."
+        # 기본 플러그인 설정 확인 개선
+        log_info "기본 플러그인 설정 확인 중..."
+        local missing_plugins=()
+        
+        if ! grep -q "plugins=.*git" "$HOME/.zshrc"; then
+            missing_plugins+=("git")
         fi
-    else
-        # 기본 플러그인 패턴 확인 (git, z, zsh-autosuggestions)
-        if ! grep -q "plugins=.*git.*z.*zsh-autosuggestions" "$HOME/.zshrc"; then
-            log_warning "플러그인 설정이 정확하지 않을 수 있습니다."
+        
+        if ! grep -q "plugins=.*z" "$HOME/.zshrc"; then
+            missing_plugins+=("z")
+        fi
+        
+        if ! grep -q "plugins=.*zsh-autosuggestions" "$HOME/.zshrc"; then
+            missing_plugins+=("zsh-autosuggestions")
+        fi
+        
+        if [ ${#missing_plugins[@]} -gt 0 ]; then
+            log_warning "다음 기본 플러그인이 .zshrc 파일에 설정되어 있지 않습니다: ${missing_plugins[*]}"
+        else
+            log_success "모든 기본 플러그인이 .zshrc 파일에 올바르게 설정되어 있습니다."
         fi
     fi
     
