@@ -108,107 +108,137 @@ handle_error() {
     exit 1
 }
 
-# Oh My Zsh 설치
+# Oh My Zsh 및 테마 설치
 install_oh_my_zsh() {
-    log_info "Oh My Zsh 설치 중..."
+    log_info "Oh My Zsh 설치 확인 중..."
     if [ ! -d "$HOME/.oh-my-zsh" ]; then
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || handle_error "Oh My Zsh 설치 실패"
+        log_info "Oh My Zsh가 설치되어 있지 않습니다. 설치를 시작합니다..."
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         log_success "Oh My Zsh 설치 완료"
     else
         log_success "Oh My Zsh가 이미 설치되어 있습니다."
     fi
     
     # Powerlevel10k 테마 설치
-    if [[ "$ZSH_THEME" == *"powerlevel10k"* ]]; then
-        log_info "Powerlevel10k 테마 설치 중..."
-        if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
-            git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k || handle_error "Powerlevel10k 테마 설치 실패"
-            log_success "Powerlevel10k 테마 설치 완료"
-        else
-            log_success "Powerlevel10k 테마가 이미 설치되어 있습니다."
-        fi
-    fi
-    
-    # Oh My Zsh 테마 설정
-    if [ ! -z "$ZSH_THEME" ]; then
-        log_info "Oh My Zsh 테마 ($ZSH_THEME) 설정 중..."
-        if [ -f ~/.zshrc ]; then
-            sed -i '' "s/ZSH_THEME=.*/ZSH_THEME=\"$ZSH_THEME\"/" ~/.zshrc || handle_error "테마 설정 실패"
-            log_success "Oh My Zsh 테마 설정 완료"
-        else
-            handle_error "~/.zshrc 파일을 찾을 수 없습니다"
-        fi
-    fi
-    
-    # Powerlevel10k 구성 파일 복사
-    if [ -f "$POWERLEVEL10K_CONFIG_PATH" ]; then
-        log_info "Powerlevel10k 구성 파일 복사 중... ($POWERLEVEL10K_CONFIG_PATH -> ~/.p10k.zsh)"
-        cp "$POWERLEVEL10K_CONFIG_PATH" ~/.p10k.zsh || handle_error "p10k 설정 파일 복사 실패"
-        chmod 644 ~/.p10k.zsh
-        
-        # .zshrc에 p10k 구성 로드 설정이 없으면 추가
-        if ! grep -q "source ~/.p10k.zsh" ~/.zshrc; then
-            log_info ".zshrc에 p10k 설정 로드 코드 추가 중..."
-            echo '' >> ~/.zshrc
-            echo '# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' >> ~/.zshrc
-            echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> ~/.zshrc
-        fi
-        
-        # p10k 즉시 프롬프트 설정이 없으면 추가
-        if ! grep -q "p10k-instant-prompt" ~/.zshrc; then
-            log_info ".zshrc에 p10k 즉시 프롬프트 설정 추가 중..."
-            sed -i '' '1i\
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.\
-# Initialization code that may require console input (password prompts, [y/n]\
-# confirmations, etc.) must go above this block; everything else may go below.\
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then\
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"\
-fi\
-' ~/.zshrc || handle_error "p10k 즉시 프롬프트 설정 추가 실패"
-        fi
-        
-        log_success "Powerlevel10k 구성 파일 복사 및 설정 완료"
+    log_info "Powerlevel10k 테마 설치 중..."
+    if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
+        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+        log_success "Powerlevel10k 테마 설치 완료"
     else
-        handle_error "Powerlevel10k 구성 파일을 찾을 수 없습니다: $POWERLEVEL10K_CONFIG_PATH"
+        log_success "Powerlevel10k 테마가 이미 설치되어 있습니다."
     fi
+    
+    # .zshrc 백업 (아직 백업이 없는 경우)
+    local timestamp=$(date +"%Y%m%d%H%M%S")
+    local zshrc_backup="$HOME/.zshrc.backup-$timestamp"
+    if [ -f "$HOME/.zshrc" ]; then
+        log_info ".zshrc 파일 백업 중... ($zshrc_backup)"
+        cp "$HOME/.zshrc" "$zshrc_backup"
+    fi
+    
+    # ZSH_THEME 설정을 검사하고 업데이트
+    log_info ".zshrc 파일에서 ZSH_THEME 설정 확인 중..."
+    
+    if [ -f "$HOME/.zshrc" ]; then
+        # .zshrc에 ZSH_THEME가 있는지 확인
+        if grep -q "^ZSH_THEME=" "$HOME/.zshrc"; then
+            log_info "기존 ZSH_THEME 설정을 업데이트합니다..."
+            # ZSH_THEME 라인을 찾아서 교체
+            sed -i.bak -E 's/^ZSH_THEME="[^"]*"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME/.zshrc"
+        else
+            # ZSH_THEME가 없는 경우, 추가
+            log_info "ZSH_THEME 설정이 없습니다. 새로 추가합니다..."
+            echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> "$HOME/.zshrc"
+        fi
+    else
+        # .zshrc가 없는 경우, 새로 생성
+        log_info ".zshrc 파일이 없습니다. 새로 생성합니다..."
+        cat > "$HOME/.zshrc" << 'EOL'
+# 기본 .zshrc 파일
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+plugins=(git z zsh-autosuggestions zsh-syntax-highlighting)
+source $ZSH/oh-my-zsh.sh
+EOL
+    fi
+    
+    # .p10k.zsh 설정 파일 링크가 있는지 확인하고 추가
+    if ! grep -q "source.*\.p10k\.zsh" "$HOME/.zshrc"; then
+        log_info "p10k 설정 파일 소스 추가 중..."
+        echo -e "\n# p10k 설정 파일 소스\n[[ -f \"$POWERLEVEL10K_CONFIG_PATH\" ]] && source \"$POWERLEVEL10K_CONFIG_PATH\"" >> "$HOME/.zshrc"
+    else
+        # 이미 존재하는 p10k 설정 파일 라인을 업데이트
+        log_info "기존 p10k 설정 파일 라인 업데이트 중..."
+        sed -i.bak -E "s|source.*\.p10k\.zsh|source \"$POWERLEVEL10K_CONFIG_PATH\"|" "$HOME/.zshrc"
+    fi
+    
+    log_success ".zshrc 파일의 Powerlevel10k 설정 완료"
 }
 
 # Oh My Zsh 플러그인 설치
 install_oh_my_zsh_plugins() {
+    local plugins_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
     log_info "Oh My Zsh 플러그인 설치 중..."
     
     # zsh-autosuggestions 플러그인 설치
-    if [[ " ${ZSH_PLUGINS[*]} " =~ " zsh-autosuggestions " ]]; then
-        if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
-            log_info "zsh-autosuggestions 플러그인 설치 중..."
-            git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions || handle_error "zsh-autosuggestions 플러그인 설치 실패"
-            log_success "zsh-autosuggestions 플러그인 설치 완료"
-        fi
+    if [ ! -d "$plugins_dir/zsh-autosuggestions" ]; then
+        log_info "zsh-autosuggestions 플러그인 설치 중..."
+        git clone https://github.com/zsh-users/zsh-autosuggestions "$plugins_dir/zsh-autosuggestions"
+        log_success "zsh-autosuggestions 플러그인 설치 완료"
+    else
+        log_success "zsh-autosuggestions 플러그인이 이미 설치되어 있습니다."
     fi
     
     # zsh-syntax-highlighting 플러그인 설치
-    if [[ " ${ZSH_PLUGINS[*]} " =~ " zsh-syntax-highlighting " ]]; then
-        if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then
-            log_info "zsh-syntax-highlighting 플러그인 설치 중..."
-            git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting || handle_error "zsh-syntax-highlighting 플러그인 설치 실패"
-            log_success "zsh-syntax-highlighting 플러그인 설치 완료"
-        fi
+    if [ ! -d "$plugins_dir/zsh-syntax-highlighting" ]; then
+        log_info "zsh-syntax-highlighting 플러그인 설치 중..."
+        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$plugins_dir/zsh-syntax-highlighting"
+        log_success "zsh-syntax-highlighting 플러그인 설치 완료"
+    else
+        log_success "zsh-syntax-highlighting 플러그인이 이미 설치되어 있습니다."
     fi
     
-    # 플러그인 설정 업데이트
-    if [ ${#ZSH_PLUGINS[@]} -gt 0 ]; then
-        plugins_str=$(IFS=' ' ; echo "${ZSH_PLUGINS[*]}")
-        log_info "Oh My Zsh 플러그인 설정 업데이트 중... ($plugins_str)"
-        
-        # 기존 플러그인 라인 찾기 및 교체
-        if grep -q "^plugins=" ~/.zshrc; then
-            sed -i '' "s/^plugins=(.*)/plugins=($plugins_str)/" ~/.zshrc || handle_error "플러그인 설정 업데이트 실패"
+    # .zshrc 파일에 플러그인 설정
+    log_info ".zshrc 파일의 플러그인 설정 업데이트 중..."
+    if [ -f "$HOME/.zshrc" ]; then
+        # plugins 설정이 있는지 확인
+        if grep -q "^plugins=(" "$HOME/.zshrc"; then
+            log_info "기존 플러그인 설정 업데이트 중..."
+            
+            # 현재 플러그인 설정 추출
+            local current_plugins=$(grep -E "^plugins=\([^)]*\)" "$HOME/.zshrc" | sed -E 's/^plugins=\(([^)]*)\)/\1/')
+            
+            # 필요한 플러그인들이 모두 있는지 확인하고 없으면 추가
+            local needed_plugins=("git" "z" "zsh-autosuggestions" "zsh-syntax-highlighting")
+            local updated_plugins="$current_plugins"
+            
+            for plugin in "${needed_plugins[@]}"; do
+                # 플러그인이 없으면 추가
+                if ! echo "$updated_plugins" | grep -q "$plugin"; then
+                    # 플러그인 목록이 비어있지 않으면 공백 추가
+                    if [ ! -z "$updated_plugins" ]; then
+                        updated_plugins="$updated_plugins $plugin"
+                    else
+                        updated_plugins="$plugin"
+                    fi
+                fi
+            done
+            
+            # 새 플러그인 설정으로 업데이트
+            log_info "플러그인 설정 업데이트: plugins=($updated_plugins)"
+            sed -i.bak -E "s/^plugins=\([^)]*\)/plugins=($updated_plugins)/" "$HOME/.zshrc"
         else
-            echo "plugins=($plugins_str)" >> ~/.zshrc || handle_error "플러그인 설정 추가 실패"
+            # plugins 설정이 없는 경우 추가
+            log_info "플러그인 설정이 없습니다. 새로 추가합니다..."
+            echo 'plugins=(git z zsh-autosuggestions zsh-syntax-highlighting)' >> "$HOME/.zshrc"
         fi
-        
-        log_success "Oh My Zsh 플러그인 설정 완료"
+    else
+        # .zshrc 파일이 없는 경우 에러 처리
+        log_error ".zshrc 파일이 존재하지 않습니다. 플러그인 설정을 추가할 수 없습니다."
+        return 1
     fi
+    
+    log_success "Oh My Zsh 플러그인 설치 및 설정 완료"
 }
 
 # 설정 검증
@@ -270,11 +300,125 @@ validate_setup() {
     fi
 }
 
+# 폰트 설치 여부 확인 및 설치
+check_and_install_fonts() {
+    log_info "폰트 설치 여부 확인 중..."
+    
+    local FONT_DIR="$HOME/Library/Fonts"
+    local any_font_installed=false
+    
+    # MesloLGS NF 폰트 일부 파일 확인
+    if [ -f "$FONT_DIR/MesloLGS NF Regular.ttf" ]; then
+        log_success "MesloLGS NF 폰트가 이미 설치되어 있습니다."
+        any_font_installed=true
+    else
+        log_info "MesloLGS NF 폰트가 설치되어 있지 않습니다. 설치를 시작합니다..."
+        
+        # 폰트 디렉토리 생성
+        mkdir -p "$FONT_DIR"
+        
+        # MesloLGS NF 폰트 URL
+        FONT_URLS=(
+            "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+            "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf"
+            "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf"
+            "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf"
+        )
+        
+        # 폰트 다운로드 및 설치
+        local install_success=true
+        for url in "${FONT_URLS[@]}"; do
+            filename=$(basename "$url" | sed 's/%20/ /g')
+            
+            if [ ! -f "$FONT_DIR/$filename" ]; then
+                log_info "폰트 다운로드 중: $filename"
+                if curl -L "$url" -o "$FONT_DIR/$filename"; then
+                    log_success "폰트 다운로드 완료: $filename"
+                else
+                    log_error "폰트 다운로드 실패: $filename"
+                    install_success=false
+                fi
+            else
+                log_success "폰트가 이미 설치되어 있습니다: $filename"
+            fi
+        done
+        
+        if [ "$install_success" = true ]; then
+            log_success "MesloLGS NF 폰트 설치 완료"
+            log_info "iTerm2에서 Preferences > Profiles > Text > Font에서 MesloLGS NF를 선택하세요."
+        else
+            log_error "일부 폰트 설치에 실패했습니다."
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# p10k 설정 파일 확인 및 준비
+check_p10k_config() {
+    log_info "Powerlevel10k 설정 파일 확인 중..."
+    
+    if [ ! -f "$POWERLEVEL10K_CONFIG_PATH" ]; then
+        log_error "Powerlevel10k 설정 파일이 존재하지 않습니다: $POWERLEVEL10K_CONFIG_PATH"
+        
+        # config 디렉토리 확인
+        if [ ! -d "$SCRIPT_DIR/config" ]; then
+            log_info "config 디렉토리를 생성합니다..."
+            mkdir -p "$SCRIPT_DIR/config" || handle_error "config 디렉토리 생성 실패"
+        fi
+        
+        # 기본 p10k 설정 파일 생성 시도
+        log_info "기본 p10k 설정 파일 생성을 시도합니다..."
+        if command -v p10k &> /dev/null; then
+            log_info "p10k 명령어를 사용하여 설정 파일을 생성합니다..."
+            p10k configure -f -y > /dev/null 2>&1
+            
+            if [ -f "$HOME/.p10k.zsh" ]; then
+                log_info "p10k 설정 파일을 config 디렉토리로 복사합니다..."
+                cp "$HOME/.p10k.zsh" "$POWERLEVEL10K_CONFIG_PATH" || handle_error "p10k 설정 파일 복사 실패"
+                log_success "기본 p10k 설정 파일 생성 완료"
+            else
+                log_error "p10k 설정 파일 생성 실패"
+                return 1
+            fi
+        else
+            log_error "p10k 명령어를 찾을 수 없습니다. 수동으로 p10k 설정 파일을 생성해야 합니다."
+            log_info "다음 옵션 중 하나를 선택하세요:"
+            log_info "1) 빈 p10k 설정 파일 생성"
+            log_info "2) 설정 종료"
+            read -p "선택 (1, 2): " choice
+            
+            case $choice in
+                1)
+                    log_info "빈 p10k 설정 파일을 생성합니다..."
+                    echo "# 기본 p10k 설정 파일" > "$POWERLEVEL10K_CONFIG_PATH" || handle_error "p10k 설정 파일 생성 실패"
+                    log_success "빈 p10k 설정 파일 생성 완료"
+                    ;;
+                *)
+                    log_info "설정을 종료합니다."
+                    return 1
+                    ;;
+            esac
+        fi
+    else
+        log_success "Powerlevel10k 설정 파일이 존재합니다: $POWERLEVEL10K_CONFIG_PATH"
+    fi
+    
+    return 0
+}
+
 # 메인 함수
 main() {
     log_info "터미널 설정을 시작합니다..."
     
-    # 설정 파일 존재 여부 확인
+    # 폰트 설치 여부 확인 및 설치
+    check_and_install_fonts || log_warning "폰트 설치에 문제가 발생했습니다. 계속 진행합니다."
+    
+    # p10k 설정 파일 확인 및 준비
+    check_p10k_config || handle_error "p10k 설정 파일 준비 실패"
+    
+    # 설정 파일 존재 여부 다시 확인
     if [ ! -f "$POWERLEVEL10K_CONFIG_PATH" ]; then
         log_error "Powerlevel10k 설정 파일이 존재하지 않습니다: $POWERLEVEL10K_CONFIG_PATH"
         log_info "설정 파일 없이 계속 진행하시겠습니까? (y/n)"

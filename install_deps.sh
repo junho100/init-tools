@@ -12,6 +12,7 @@ fi
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'  # 경고 메시지용 노란색 추가
 NC='\033[0m' # No Color
 
 # 로그 메시지 함수
@@ -25,6 +26,10 @@ log_success() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
 # XCode Command Line Tools 설치 확인
@@ -109,20 +114,47 @@ install_nerd_fonts() {
     )
     
     # 폰트 다운로드 및 설치
+    local install_success=true
     for url in "${FONT_URLS[@]}"; do
         filename=$(basename "$url" | sed 's/%20/ /g')
         
         if [ ! -f "$FONT_DIR/$filename" ]; then
             log_info "폰트 다운로드 중: $filename"
-            curl -L "$url" -o "$FONT_DIR/$filename"
-            log_success "폰트 다운로드 완료: $filename"
+            if curl -L "$url" -o "$FONT_DIR/$filename"; then
+                log_success "폰트 다운로드 완료: $filename"
+                # 다운로드한 파일 검증
+                if [ ! -s "$FONT_DIR/$filename" ]; then
+                    log_error "다운로드한 폰트 파일이 비어 있습니다: $filename"
+                    install_success=false
+                    rm -f "$FONT_DIR/$filename"  # 빈 파일 제거
+                fi
+            else
+                log_error "폰트 다운로드 실패: $filename"
+                install_success=false
+            fi
         else
-            log_success "폰트가 이미 설치되어 있습니다: $filename"
+            # 기존 파일 검증
+            if [ -s "$FONT_DIR/$filename" ]; then
+                log_success "폰트가 이미 설치되어 있습니다: $filename"
+            else
+                log_warning "이미 설치된 폰트 파일이 비어 있습니다: $filename. 재다운로드를 시도합니다."
+                rm -f "$FONT_DIR/$filename"  # 빈 파일 제거
+                if curl -L "$url" -o "$FONT_DIR/$filename"; then
+                    log_success "폰트 재다운로드 완료: $filename"
+                else
+                    log_error "폰트 재다운로드 실패: $filename"
+                    install_success=false
+                fi
+            fi
         fi
     done
     
-    log_success "MesloLGS NF 폰트 설치 완료"
-    log_info "iTerm2에서 Preferences > Profiles > Text > Font에서 MesloLGS NF를 선택하세요."
+    if [ "$install_success" = true ]; then
+        log_success "MesloLGS NF 폰트 설치 완료"
+        log_info "iTerm2에서 Preferences > Profiles > Text > Font에서 MesloLGS NF를 선택하세요."
+    else
+        log_error "일부 폰트 설치에 실패했습니다. setup_terminal.sh에서 폰트 설치가 다시 시도될 것입니다."
+    fi
 }
 
 # iTerm2 설치
