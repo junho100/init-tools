@@ -1,6 +1,6 @@
 # Mac 초기 설정 자동화 도구
 
-새로운 맥북을 설정할 때 필요한 도구들을 자동으로 설치하는 스크립트입니다.
+새로운 맥북을 설정할 때 필요한 도구들을 설치하고 터미널 환경을 구성하는 도구입니다.
 
 ## 전제 조건
 
@@ -8,17 +8,30 @@
 
 ## 설치되는 도구들
 
-- k9s - 쿠버네티스 CLI 툴
-- kubectx - 쿠버네티스 컨텍스트 전환 툴
-- Oh My Zsh - Zsh 구성 관리 프레임워크
-- iTerm2 - 터미널 에뮬레이터
-- Rectangle - 창 관리 도구
-- VSCode - 코드 에디터
-- Cursor - AI 지원 코드 에디터
-- Powerlevel10k - Zsh 테마
-- MesloLGS NF - 폰트(Powerlevel10k용)
-- z - 디렉토리 이동 유틸리티
-- Zsh-autosuggestions - Zsh 자동 완성 플러그인
+### 의존성 (수동 설치)
+
+의존성은 `DEPENDENCIES.md` 문서를 참고하여 수동으로 설치합니다:
+
+- XCode Command Line Tools
+- Homebrew
+- k9s (쿠버네티스 CLI 툴)
+- kubectx (쿠버네티스 컨텍스트 전환 툴)
+- iTerm2 (터미널 에뮬레이터)
+- Rectangle (창 관리 도구)
+- VSCode (코드 에디터)
+- Cursor (AI 지원 코드 에디터)
+- MesloLGS NF (폰트)
+
+### 터미널 설정 (자동 설치)
+
+다음 항목들은 `setup_terminal.sh` 스크립트로 자동 설치됩니다:
+
+- Oh My Zsh (Zsh 구성 관리 프레임워크)
+- Powerlevel10k (Zsh 테마)
+- git 플러그인 (Git 관련 기능)
+- z 플러그인 (디렉토리 이동 유틸리티)
+- zsh-autosuggestions (Zsh 자동 완성 플러그인)
+- k9s alias 설정 (폰트 깨짐 방지)
 
 ## 새 맥북에서 설정하는 방법
 
@@ -32,7 +45,7 @@
 2. 실행 권한을 부여합니다:
 
    ```bash
-   chmod +x install.sh install_deps.sh setup_terminal.sh config.sh
+   chmod +x install.sh setup_terminal.sh config.sh
    ```
 
 3. 필요한 경우 `config.sh` 파일을 수정하여 원하는 설정을 변경합니다.
@@ -45,26 +58,25 @@
 
    메뉴에서 다음 옵션 중 하나를 선택할 수 있습니다:
 
-   - 1: 애플리케이션 설치만 진행
-   - 2: 터미널 설정만 진행
-   - 3: 모든 설치를 순차적으로 진행
+   - 1: 의존성 설치 가이드 보기 (수동으로 설치해야 함)
+   - 2: 터미널 설정 (자동으로 설치됨)
    - q: 종료
 
 ## 모듈식 설치
 
 이 도구는 두 단계로 나누어 설치할 수 있습니다:
 
-1. **애플리케이션 설치** (install_deps.sh)
+1. **의존성 설치** (DEPENDENCIES.md 참조)
 
-   - Homebrew, XCode Command Line Tools 설치
-   - 필요한 애플리케이션 및 도구 설치
-   - VSCode 확장 프로그램 설치
-   - 폰트 설치
+   - 의존성 설치 가이드 문서를 참고하여 필요한 도구들을 수동으로 설치합니다.
+   - 각 도구의 설치 명령어와 설정 방법이 상세히 기재되어 있습니다.
+   - k9s 폰트 깨짐 방지를 위한 alias 설정 방법도 포함되어 있습니다.
 
 2. **터미널 설정** (setup_terminal.sh)
    - Oh My Zsh 설치 및 설정
    - Powerlevel10k 테마 설정
    - 플러그인 설치 및 구성
+   - k9s alias 설정 (폰트 깨짐 방지)
    - 설정 검증 및 디버깅 정보 수집
 
 각 단계는 독립적으로 실행할 수 있으며, 문제가 발생할 경우 디버깅 정보가 자동으로 수집됩니다.
@@ -90,7 +102,7 @@
 - iTerm2 폰트 설정: Preferences > Profiles > Text > Font에서 `MesloLGS NF` 선택
 - iTerm2 컬러 테마 설정: Preferences > Profiles > Colors > Color Presets
 - Homebrew 설치 확인: `brew --version`
-- VSCode 확장 프로그램 확인
+- k9s alias 설정 확인: `alias | grep k9s`
 - Oh My Zsh 플러그인이 ~/.zshrc 파일에 포함되어 있는지 확인
 
 ## 설정 사용자 정의
@@ -105,18 +117,15 @@
 - z
 - zsh-autosuggestions
 
+`config.sh` 파일에서 `ZSH_PLUGINS` 배열을 수정하여 설치할 플러그인을 변경할 수 있습니다.
+
 ### ZSH 테마
 
 기본 테마는 `powerlevel10k/powerlevel10k`입니다.
 
 ### VSCode 확장 프로그램
 
-기본적으로 다음 확장 프로그램이 설치됩니다:
-
-- formulahendry.auto-rename-tag (Auto Rename Tag)
-- hashicorp.terraform (HashiCorp Terraform)
-- eamodio.gitlens (GitLens)
-- golang.go (Go)
+설치가 권장되는 확장 프로그램은 `DEPENDENCIES.md` 문서를 참고하세요.
 
 ### iTerm2 컬러 테마
 
@@ -143,13 +152,21 @@ ls -la config/.p10k.zsh
 
 ### Nerd Fonts
 
-Powerlevel10k에 필요한 MesloLGS NF 폰트는 자동으로 설치됩니다. iTerm2에서 폰트 설정을 해주어야 아이콘이 제대로 표시됩니다.
+Powerlevel10k에 필요한 MesloLGS NF 폰트는 `DEPENDENCIES.md` 문서의 안내에 따라 수동으로 설치해야 합니다. iTerm2에서 폰트 설정을 해주어야 아이콘이 제대로 표시됩니다.
 
 ## 문제 해결
 
 ### 폰트 표시 문제
 
 폰트 아이콘이 제대로 표시되지 않는 경우, iTerm2 설정에서 폰트를 `MesloLGS NF`로 설정했는지 확인하세요.
+
+### k9s 폰트 깨짐 문제
+
+k9s에서 폰트가 깨져 보이는 경우 다음 alias가 적용되었는지 확인하세요:
+
+```bash
+alias k9s="LANG=de_DE.UTF-8 k9s"
+```
 
 ### p10k 설정 문제
 

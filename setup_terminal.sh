@@ -167,12 +167,25 @@ install_oh_my_zsh() {
     else
         # .zshrc가 없는 경우, 새로 생성
         log_info ".zshrc 파일이 없습니다. 새로 생성합니다..."
-        cat > "$HOME/.zshrc" << 'EOL'
+        
+        # plugins 설정 구성
+        local plugin_list="git z"
+        if [ -n "${ZSH_PLUGINS[*]}" ]; then
+            for plugin in "${ZSH_PLUGINS[@]}"; do
+                if [ "$plugin" != "git" ] && [ "$plugin" != "z" ]; then
+                    plugin_list="$plugin_list $plugin"
+                fi
+            done
+        else
+            plugin_list="$plugin_list zsh-autosuggestions"
+        fi
+        
+        cat > "$HOME/.zshrc" << EOL
 # 기본 .zshrc 파일
-export ZSH="$HOME/.oh-my-zsh"
+export ZSH="\$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
-plugins=(git z zsh-autosuggestions zsh-syntax-highlighting)
-source $ZSH/oh-my-zsh.sh
+plugins=($plugin_list)
+source \$ZSH/oh-my-zsh.sh
 EOL
     fi
     
@@ -203,27 +216,59 @@ install_oh_my_zsh_plugins() {
         mkdir -p "$plugins_dir"
     fi
     
-    # zsh-autosuggestions 플러그인 설치
-    if [ ! -d "$plugins_dir/zsh-autosuggestions" ]; then
-        log_info "zsh-autosuggestions 플러그인 설치 중..."
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$plugins_dir/zsh-autosuggestions"
-        log_success "zsh-autosuggestions 플러그인 설치 완료"
+    # 필요한 플러그인 목록
+    local plugins_to_install=()
+    
+    # config.sh에 정의된 플러그인 확인
+    if [ -n "${ZSH_PLUGINS[*]}" ]; then
+        # config.sh에서 정의한 플러그인 목록 사용
+        for plugin in "${ZSH_PLUGINS[@]}"; do
+            if [ "$plugin" != "git" ] && [ "$plugin" != "z" ]; then
+                plugins_to_install+=("$plugin")
+            fi
+        done
     else
-        log_success "zsh-autosuggestions 플러그인이 이미 설치되어 있습니다."
+        # 기본 플러그인 목록
+        plugins_to_install=("zsh-autosuggestions")
     fi
     
-    # zsh-syntax-highlighting 플러그인 설치
-    if [ ! -d "$plugins_dir/zsh-syntax-highlighting" ]; then
-        log_info "zsh-syntax-highlighting 플러그인 설치 중..."
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$plugins_dir/zsh-syntax-highlighting"
-        log_success "zsh-syntax-highlighting 플러그인 설치 완료"
-    else
-        log_success "zsh-syntax-highlighting 플러그인이 이미 설치되어 있습니다."
-    fi
+    # 선택된 플러그인 설치
+    for plugin in "${plugins_to_install[@]}"; do
+        if [ ! -d "$plugins_dir/$plugin" ]; then
+            log_info "$plugin 플러그인 설치 중..."
+            case "$plugin" in
+                "zsh-autosuggestions")
+                    git clone https://github.com/zsh-users/zsh-autosuggestions "$plugins_dir/$plugin"
+                    ;;
+                "zsh-syntax-highlighting")
+                    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$plugins_dir/$plugin"
+                    ;;
+                *)
+                    log_warning "알 수 없는 플러그인: $plugin - 설치를 건너뜁니다."
+                    continue
+                    ;;
+            esac
+            
+            if [ $? -eq 0 ]; then
+                log_success "$plugin 플러그인 설치 완료"
+            else
+                log_error "$plugin 플러그인 설치 실패"
+                return 1
+            fi
+        else
+            log_success "$plugin 플러그인이 이미 설치되어 있습니다."
+        fi
+    done
     
     # .zshrc 파일에 플러그인 설정
     log_info ".zshrc 파일의 플러그인 설정 업데이트 중..."
     if [ -f "$HOME/.zshrc" ]; then
+        # 필요한 플러그인 목록 구성
+        local needed_plugins=("git" "z")
+        for plugin in "${plugins_to_install[@]}"; do
+            needed_plugins+=("$plugin")
+        done
+        
         # plugins 설정이 있는지 확인
         if grep -q "^plugins=(" "$HOME/.zshrc"; then
             log_info "기존 플러그인 설정 업데이트 중..."
@@ -232,7 +277,6 @@ install_oh_my_zsh_plugins() {
             local current_plugins=$(grep -E "^plugins=\([^)]*\)" "$HOME/.zshrc" | sed -E 's/^plugins=\(([^)]*)\)/\1/')
             
             # 필요한 플러그인들이 모두 있는지 확인하고 없으면 추가
-            local needed_plugins=("git" "z" "zsh-autosuggestions" "zsh-syntax-highlighting")
             local updated_plugins="$current_plugins"
             
             for plugin in "${needed_plugins[@]}"; do
@@ -258,7 +302,9 @@ install_oh_my_zsh_plugins() {
         else
             # plugins 설정이 없는 경우 추가
             log_info "플러그인 설정이 없습니다. 새로 추가합니다..."
-            echo 'plugins=(git z zsh-autosuggestions zsh-syntax-highlighting)' >> "$HOME/.zshrc"
+            local plugin_list=$(printf " %s" "${needed_plugins[@]}")
+            plugin_list=${plugin_list:1}  # 첫 번째 공백 제거
+            echo "plugins=($plugin_list)" >> "$HOME/.zshrc"
         fi
     else
         # .zshrc 파일이 없는 경우 에러 처리
@@ -304,19 +350,47 @@ validate_setup() {
     fi
     
     # Oh My Zsh 플러그인 확인
-    if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
-        log_error "zsh-autosuggestions 플러그인이 설치되어 있지 않습니다."
-        has_error=1
-    fi
-    
-    if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then
-        log_error "zsh-syntax-highlighting 플러그인이 설치되어 있지 않습니다."
-        has_error=1
+    # config.sh에 정의된 플러그인 확인
+    if [ -n "${ZSH_PLUGINS[*]}" ]; then
+        for plugin in "${ZSH_PLUGINS[@]}"; do
+            if [ "$plugin" != "git" ] && [ "$plugin" != "z" ]; then
+                if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/$plugin" ]; then
+                    log_error "$plugin 플러그인이 설치되어 있지 않습니다."
+                    has_error=1
+                fi
+            fi
+        done
+    else
+        # 기본 플러그인만 확인
+        if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
+            log_error "zsh-autosuggestions 플러그인이 설치되어 있지 않습니다."
+            has_error=1
+        fi
     fi
     
     # 플러그인 설정 확인
-    if ! grep -q "plugins=.*zsh-autosuggestions.*zsh-syntax-highlighting" "$HOME/.zshrc"; then
-        log_warning "플러그인 설정이 정확하지 않을 수 있습니다."
+    local plugins_pattern=""
+    if [ -n "${ZSH_PLUGINS[*]}" ]; then
+        # plugins 설정에서 모든 ZSH_PLUGINS 항목이 포함되어 있는지 확인하는 패턴을 생성
+        plugins_pattern="plugins=\\("
+        for plugin in "${ZSH_PLUGINS[@]}"; do
+            plugins_pattern="${plugins_pattern}.*${plugin}"
+        done
+        plugins_pattern="${plugins_pattern}.*\\)"
+        
+        if ! grep -q "$plugins_pattern" "$HOME/.zshrc"; then
+            log_warning "플러그인 설정이 정확하지 않을 수 있습니다. 현재 설정을 확인하세요."
+        fi
+    else
+        # 기본 플러그인 패턴 확인 (git, z, zsh-autosuggestions)
+        if ! grep -q "plugins=.*git.*z.*zsh-autosuggestions" "$HOME/.zshrc"; then
+            log_warning "플러그인 설정이 정확하지 않을 수 있습니다."
+        fi
+    fi
+    
+    # k9s alias 확인
+    if ! grep -q "alias k9s=" "$HOME/.zshrc"; then
+        log_warning "k9s alias 설정이 없습니다."
     fi
     
     if [ $has_error -eq 1 ]; then
@@ -490,6 +564,25 @@ EOL
     return 0
 }
 
+# k9s alias 설정 함수
+setup_k9s_alias() {
+    log_info "k9s alias 설정 확인 중..."
+    local alias_line='alias k9s="LANG=de_DE.UTF-8 k9s"'
+    
+    if grep -q "alias k9s=" "$HOME/.zshrc"; then
+        log_info "기존 k9s alias 설정을 업데이트합니다..."
+        # 기존 k9s alias 라인을 찾아서 교체
+        local tmpfile=$(mktemp)
+        cat "$HOME/.zshrc" | sed "s|alias k9s=.*|$alias_line|" > "$tmpfile"
+        mv "$tmpfile" "$HOME/.zshrc"
+    else
+        log_info "k9s alias 설정을 추가합니다..."
+        echo "$alias_line" >> "$HOME/.zshrc"
+    fi
+    
+    log_success "k9s alias 설정 완료"
+}
+
 # 메인 함수
 main() {
     log_info "터미널 설정을 시작합니다..."
@@ -506,18 +599,15 @@ main() {
     # Oh My Zsh 플러그인 설치
     install_oh_my_zsh_plugins || handle_error "Oh My Zsh 플러그인 설치 실패"
     
+    # k9s alias 설정
+    setup_k9s_alias
+    
     # 설정 검증
     validate_setup
-    result=$?
     
-    if [ $result -eq 0 ]; then
-        log_success "모든 터미널 설정이 완료되었습니다!"
-        log_info "변경사항을 적용하려면 터미널을 재시작하거나 'source ~/.zshrc' 명령어를 실행하세요."
-        log_info "iTerm2에서 MesloLGS NF 폰트를 설정하는 것을 잊지 마세요."
-    else
-        log_warning "일부 설정이 완료되지 않았습니다. 위의 오류 메시지를 확인하고 필요한 경우 스크립트를 다시 실행하세요."
-        log_info "DEBUG 정보를 개발자에게 전달하여 도움을 받을 수 있습니다."
-    fi
+    # 마무리 메시지
+    log_success "터미널 설정이 완료되었습니다!"
+    log_info "변경 사항을 적용하려면 터미널을 새로 열거나 'source ~/.zshrc' 명령어를 실행하세요."
 }
 
 # 스크립트 실행

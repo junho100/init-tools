@@ -8,33 +8,35 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # 실행 권한 부여
-chmod +x install_deps.sh setup_terminal.sh config.sh
+chmod +x setup_terminal.sh config.sh
 
 echo -e "${BLUE}[INFO]${NC} Mac 초기 설정 자동화 도구"
 echo -e "${BLUE}[INFO]${NC} 이 도구는 두 단계로 나누어 실행됩니다:"
-echo -e "${BLUE}[INFO]${NC} 1. 애플리케이션 설치 (install_deps.sh)"
+echo -e "${BLUE}[INFO]${NC} 1. 의존성 설치 (수동으로 DEPENDENCIES.md 참조)"
 echo -e "${BLUE}[INFO]${NC} 2. 터미널 설정 (setup_terminal.sh)"
 echo ""
 echo -e "${YELLOW}[선택]${NC} 어떤 작업을 수행하시겠습니까?"
-echo "1) 애플리케이션 설치 (의존성 설치)"
+echo "1) 의존성 설치 가이드 보기 (DEPENDENCIES.md)"
 echo "2) 터미널 설정 (zsh, p10k 설정)"
-echo "3) 모두 실행 (순차적으로 1, 2 실행)"
 echo "q) 종료"
 echo ""
-read -p "선택 (1, 2, 3, q): " choice
+read -p "선택 (1, 2, q): " choice
 
 case $choice in
     1)
-        echo -e "${GREEN}[실행]${NC} 애플리케이션 설치를 시작합니다..."
-        ./install_deps.sh
+        echo -e "${GREEN}[실행]${NC} 의존성 설치 가이드를 엽니다..."
+        if command -v bat &> /dev/null; then
+            bat DEPENDENCIES.md
+        elif command -v less &> /dev/null; then
+            less DEPENDENCIES.md
+        else
+            cat DEPENDENCIES.md | more
+        fi
+        echo -e "${BLUE}[INFO]${NC} 가이드에 따라 필요한 의존성을 설치한 후, 옵션 2를 선택하여 터미널 설정을 진행하세요."
         ;;
     2)
         echo -e "${GREEN}[실행]${NC} 터미널 설정을 시작합니다..."
         ./setup_terminal.sh
-        ;;
-    3)
-        echo -e "${GREEN}[실행]${NC} 모든 설치를 순차적으로 시작합니다..."
-        ./install_deps.sh && ./setup_terminal.sh
         ;;
     q|Q)
         echo -e "${BLUE}[INFO]${NC} 프로그램을 종료합니다."
