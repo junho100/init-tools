@@ -138,3 +138,9 @@ kubectx --version           # kubectx 버전 확인
 - k9s alias 설정 (폰트 깨짐 방지)
 
 `config.sh` 파일에서 `ZSH_PLUGINS` 배열을 수정하여 설치할 플러그인을 변경할 수 있습니다.
+
+## 6. Git setting
+
+```bash
+git config --global alias.hist "log --graph --all --pretty=format:'%C(yellow)[%ad]%C(reset) %C(green)[%h]%C(reset) | %C(white)%s %C(bold red){{%an}}%C(reset) %C(blue)%d%C(reset)' --date=short"
+```
